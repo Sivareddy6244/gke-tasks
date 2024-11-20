@@ -1,0 +1,22 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: myapp-deployment-green
+  labels:
+    app: myapp-deployment-green
+spec:
+  template:
+    metadata:
+      name: myapp-pod
+      labels:
+        app: myapp
+        version: ${VERSION}
+    spec:
+      containers:
+        - name: myapp-container
+          image: ${IMAGE_NAME_GREEN}
+  replicas: 1
+  selector:
+    matchLabels:
+      version: ${VERSION}
+      app: myapp
