@@ -1,0 +1,84 @@
+stages:
+  - blue-deployment
+  - green-deployment
+
+services:
+  - docker:dind
+variables:
+  DOCKER_HOST: tcp://docker:2375  
+  DOCKER_TLS_CERTDIR: ""
+  REPO_NAME_BLUE: "blue-app-version"
+  REPO_NAME_GREEN: "green-app-version"
+  PROJECT_ID: "cedar-context-433909-d9"
+  LABLE_BLUE: "blue"
+  LABLE_GREEN: "green"
+  IMAGE_NAME_BLUE: "gcr.io/$PROJECT_ID/$REPO_NAME_BLUE:$LABLE_BLUE"
+  IMAGE_NAME_GREEN: "gcr.io/$PROJECT_ID/$REPO_NAME_GREEN:$LABLE_GREEN"
+ 
+blue_app_image:
+  stage: blue-deployment
+  image: registry.gitlab.com/siva3130145/gke-exercises-project/my-image:latest
+  before_script:
+    - gcloud auth activate-service-account --key-file $TF_VAR_credential_file
+    - cd blue-app
+    - gcloud auth configure-docker --quiet
+  script:
+    - docker build -t $IMAGE_NAME_BLUE .
+    - docker push $IMAGE_NAME_BLUE
+  when: manual
+
+blue-deployment-job:
+  stage: blue-deployment
+  image: google/cloud-sdk:latest
+  variables:
+    VERSION: "blue"
+  before_script:
+    - cd k8s-blue-green-deployemts/blue-version-deployment
+    - gcloud auth activate-service-account --key-file $TF_VAR_credential_file
+    - gcloud container clusters get-credentials gke-cluster --zone us-central1-a --project $PROJECT_ID
+    - kubectl get all
+    - echo "$IMAGE_NAME_BLUE"
+    - echo "$VERSION"
+    - apt-get update && apt-get install -y gettext
+  script:
+    - envsubst < blue-version-deployment.yaml | kubectl apply -f -
+    - envsubst < application-service.yaml | kubectl apply -f -
+  when: manual
+
+green_app_image:
+  stage: green-deployment
+  image: registry.gitlab.com/siva3130145/gke-exercises-project/my-image:latest
+  before_script:
+    - gcloud auth activate-service-account --key-file $TF_VAR_credential_file
+    - cd green-app
+    - gcloud auth configure-docker --quiet
+  script:
+    - docker build -t $IMAGE_NAME_GREEN .
+    - docker push $IMAGE_NAME_GREEN
+  when: manual
+
+green-deployment-job:
+  stage: green-deployment
+  image: google/cloud-sdk:latest
+  variables:
+    VERSION: "green"
+  before_script:
+    - cd k8s-blue-green-deployemts/green-version-deployment
+    - gcloud auth activate-service-account --key-file $TF_VAR_credential_file
+    - gcloud container clusters get-credentials gke-cluster --zone us-central1-a --project $PROJECT_ID
+    - kubectl get all
+    - echo "$IMAGE_NAME_GREEN"
+    - echo "$VERSION"
+    - apt-get update && apt-get install -y gettext
+  script:
+    - envsubst < green-version-deployment.yaml | kubectl apply -f -
+    - envsubst < application-service.yaml | kubectl apply -f -
+  when: manual
+
+
+
+
+
+    
+
+
